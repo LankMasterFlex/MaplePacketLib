@@ -110,11 +110,15 @@ namespace MaplePacketLib
             if (m_packetBuffer.Length - m_cursor < length)
             {
                 int newSize = m_packetBuffer.Length * 2;
-                while (newSize < m_cursor + length) newSize *= 2;
+                
+                while (newSize < m_cursor + length)
+                    newSize *= 2;
+
                 Array.Resize<byte>(ref m_packetBuffer, newSize);
             }
 
             System.Buffer.BlockCopy(data, start, m_packetBuffer, m_cursor, length);
+
             m_cursor += length;
         }
 
@@ -211,14 +215,26 @@ namespace MaplePacketLib
                 throw new Exception("Client cipher not yet set");
             }
 
+            byte[] packet = p.ToArray();
+
+            if (packet == null)
+            {
+                throw new Exception("Packet is null");
+            }
+
+            if (packet.Length < 2)
+            {
+                throw new Exception("Packet length must be greater than 2");
+            }
+
             lock (m_sendLock)
             {
-                byte[] packet = p.ToArray();
+
                 byte[] final = new byte[packet.Length + 4];
 
                 m_clientCipher.GetHeaderToServer(packet.Length, final);
-
                 m_clientCipher.Transform(packet);
+
                 System.Buffer.BlockCopy(packet, 0, final, 4, packet.Length);
 
                 int offset = 0;

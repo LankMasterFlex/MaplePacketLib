@@ -291,10 +291,9 @@ namespace MaplePacketLib
         public void Dispose()
         {
             ThrowIfDisposed();
+            Disconnect();
 
             m_disposed = true;
-
-            Disconnect();
 
             m_socket.Dispose();
 

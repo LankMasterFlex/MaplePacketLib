@@ -135,7 +135,7 @@ namespace MaplePacketLib
             }
 
             PacketReader packet = new PacketReader(buffer);
-            packet.ReadShort();
+            packet.ReadShort(); //length header
             short major = packet.ReadShort();
             string minor = packet.ReadMapleString();
             m_clientCipher = new MapleCipher(major, packet.ReadBytes(4), MapleCipher.TransformDirection.Encrypt);
@@ -164,25 +164,25 @@ namespace MaplePacketLib
 
             while (true)
             {
-                if (m_cursor < 4)
+                if (m_cursor < 4) //header room
                 {
                     break;
                 }
 
                 int packetSize = MapleCipher.GetPacketLength(m_packetBuffer);
 
-                if (m_cursor < packetSize + 4)
+                if (m_cursor < packetSize + 4) //header + packet room
                 {
                     break;
                 }
 
                 byte[] packetBuffer = new byte[packetSize];
-                System.Buffer.BlockCopy(m_packetBuffer, 4, packetBuffer, 0, packetSize);
-                m_serverCipher.Transform(packetBuffer);
+                System.Buffer.BlockCopy(m_packetBuffer, 4, packetBuffer, 0, packetSize); //copy packet
+                m_serverCipher.Transform(packetBuffer); //decrypt
 
-                m_cursor -= packetSize + 4;
+                m_cursor -= packetSize + 4; //fix len
 
-                if (m_cursor > 0)
+                if (m_cursor > 0) //move reamining bytes
                 {
                     System.Buffer.BlockCopy(m_packetBuffer, packetSize + 4, m_packetBuffer, 0, m_cursor);
                 }

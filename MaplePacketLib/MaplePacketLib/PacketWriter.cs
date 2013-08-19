@@ -39,7 +39,7 @@ namespace MaplePacketLib
         /// </summary>
         /// <param name="opcode">Value to be written as short</param>
         /// <param name="size">Buffer size</param>
-        public PacketWriter(short opcode, int size = 64)
+        public PacketWriter(short opcode, int size = 32)
         {
             m_stream = new MemoryStream(size);
             m_disposed = false;
@@ -247,13 +247,11 @@ namespace MaplePacketLib
         /// </summary>
         public void Close()
         {
-            if (!m_disposed)
-            {
-                m_disposed = true;
+            ThrowIfDisposed();
 
-                m_stream.Dispose();
-                m_stream = null;
-            }
+            m_disposed = true;
+            m_stream.Dispose();
+            m_stream = null;
         }
 
         private void ThrowIfDisposed()
@@ -269,6 +267,7 @@ namespace MaplePacketLib
         /// </summary>
         public void Dispose()
         {
+            ThrowIfDisposed();
             Close();
         }
     }

@@ -6,9 +6,9 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("MaplePacketLib")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Custom client development library")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("Rajan Grewal")]
 [assembly: AssemblyProduct("MaplePacketLib")]
 [assembly: AssemblyCopyright("Copyright ©  2013")]
 [assembly: AssemblyTrademark("")]

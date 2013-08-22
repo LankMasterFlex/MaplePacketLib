@@ -23,6 +23,22 @@ namespace MaplePacketLib
 
         private object m_sendLock;
 
+        public IMapleClient MapleClient
+        {
+            get
+            {
+                return m_recipient;
+            }
+        }
+
+        public bool Disposed
+        {
+            get
+            {
+                return m_disposed;
+            }
+        }
+
         public bool Connected
         {
             get
@@ -32,11 +48,31 @@ namespace MaplePacketLib
         }
 
         /// <summary>
+        /// Sets the Aes key for encryption
+        /// </summary>
+        /// <param name="key">32 byte aes key</param>
+        public static void SetAesKey(byte[] key)
+        {
+            if (key == null)
+                throw new ArgumentNullException("key");
+
+            if (key.Length != 32)
+                throw new Exception("Key length needs to be 32");
+
+            AESEncryption.SetKey(key);
+        }
+
+        /// <summary>
         ///  Creates a new instance of CClientSocket
         /// </summary>
         /// <param name="eventRecipient">The event recipient</param>
         public CClientSocket(IMapleClient eventRecipient)
         {
+            if (!AESEncryption.KeySet)
+            {
+                throw new Exception("Aes key is not set!  Please set it with CClientSocket.SetAesKey");
+            }
+
             m_socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             m_recipient = eventRecipient;
 
@@ -70,6 +106,8 @@ namespace MaplePacketLib
 
         private void EndConnect(IAsyncResult iar)
         {
+            if (m_disposed) { return; }
+
             try
             {
                 m_socket.EndConnect(iar);
@@ -146,7 +184,7 @@ namespace MaplePacketLib
             m_serverCipher = new MapleCipher(major, packet.ReadBytes(4), MapleCipher.TransformDirection.Decrypt);
             byte locale = packet.ReadByte();
 
-            m_recipient.OnHandshake(major, minor);
+            m_recipient.OnHandshake(major, minor, locale);
 
             Receive(m_recvBuffer, 0, ReceiveSize, PacketCallback);
         }
@@ -217,11 +255,6 @@ namespace MaplePacketLib
 
             byte[] packet = p.ToArray();
 
-            if (packet == null)
-            {
-                throw new Exception("Packet is null");
-            }
-
             if (packet.Length < 2)
             {
                 throw new Exception("Packet length must be greater than 2");
@@ -229,7 +262,6 @@ namespace MaplePacketLib
 
             lock (m_sendLock)
             {
-
                 byte[] final = new byte[packet.Length + 4];
 
                 m_clientCipher.GetHeaderToServer(packet.Length, final);
@@ -290,7 +322,6 @@ namespace MaplePacketLib
         /// </summary>
         public void Dispose()
         {
-            ThrowIfDisposed();
             Disconnect();
 
             m_disposed = true;

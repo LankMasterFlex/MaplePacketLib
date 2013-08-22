@@ -5,18 +5,19 @@ namespace MaplePacketLib.Cryptography
 {
     static class AESEncryption
     {
-        public const short AesKeyVersion = 140;
-
-        private static readonly byte[] sUserKey = new byte[32] //140.1
-        {
-            0xCD, 0x00, 0x00, 0x00, 0x5C, 0x00, 0x00, 0x00, 0xDC, 0x00, 0x00, 0x00,0x98, 0x00, 0x00, 0x00,
-            0xD8, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x9A, 0x00, 0x00, 0x00, 0x47, 0x00, 0x00, 0x00
-        };
-
+        private static byte[] sUserKey;
         private static ICryptoTransform sTransformer;
 
-        static AESEncryption()
+        public static bool KeySet
         {
+            get { return sUserKey != null; }
+        }
+
+        internal static void SetKey(byte[] key)
+        {
+            sUserKey = new byte[32];
+            System.Buffer.BlockCopy(key, 0, sUserKey, 0, 32);
+
             RijndaelManaged aes = new RijndaelManaged()
             {
                 Key = sUserKey,

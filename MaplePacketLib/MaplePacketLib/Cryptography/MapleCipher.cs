@@ -2,7 +2,7 @@
 
 namespace MaplePacketLib.Cryptography
 {
-    public sealed class MapleCipher
+    internal sealed class MapleCipher
     {
         private static readonly byte[] sShuffle = new byte[256]
         {
@@ -24,7 +24,7 @@ namespace MaplePacketLib.Cryptography
             0x84, 0x7F, 0x61, 0x1E, 0xCF, 0xC5, 0xD1, 0x56, 0x3D, 0xCA, 0xF4, 0x05, 0xC6, 0xE5, 0x08, 0x49
         };
 
-        public enum TransformDirection : byte
+        public enum CipherMode : byte
         {
             Encrypt,
             Decrypt
@@ -32,7 +32,7 @@ namespace MaplePacketLib.Cryptography
 
         private short m_majorVersion;
         private byte[] m_IV;
-        private TransformDirection m_direction;
+        private CipherMode m_direction;
 
         private Action<byte[]> m_transformer;
 
@@ -40,12 +40,12 @@ namespace MaplePacketLib.Cryptography
         {
             get { return m_majorVersion; }
         }
-        public TransformDirection TransformationDirection
+        public CipherMode TransformationDirection
         {
             get { return m_direction; }
         }
 
-        public MapleCipher(short majorVersion, byte[] IV, TransformDirection transformDirection)
+        public MapleCipher(short majorVersion, byte[] IV, CipherMode transformDirection)
         {
             m_majorVersion = majorVersion;
 
@@ -54,8 +54,7 @@ namespace MaplePacketLib.Cryptography
 
             m_direction = transformDirection;
 
-            //Like i just cant deal with a cmp every time idk
-            m_transformer = m_direction == TransformDirection.Encrypt ? new Action<byte[]>(EncryptTransform) : new Action<byte[]>(DecryptTransform);
+            m_transformer = m_direction == CipherMode.Encrypt ? new Action<byte[]>(EncryptTransform) : new Action<byte[]>(DecryptTransform);
         }
 
         public void Transform(byte[] data)
@@ -107,7 +106,6 @@ namespace MaplePacketLib.Cryptography
             byte[] start = new byte[4] { 0xF2, 0x53, 0x50, 0xC6 };
             for (int i = 0; i < 4; i++)
             {
-                
                 byte inputByte = IV[i];
 
                 byte a = start[1];

@@ -44,6 +44,7 @@
             m_offset = 0;
         }
 
+
         /// <summary>
         /// Reads bytes from stream - From LittleEndianByteConverter by Shoftee
         /// </summary>

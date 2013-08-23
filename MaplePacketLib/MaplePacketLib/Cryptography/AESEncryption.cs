@@ -3,14 +3,17 @@ using System.Security.Cryptography;
 
 namespace MaplePacketLib.Cryptography
 {
-    static class AESEncryption
+    internal static class AESEncryption
     {
         private static byte[] sUserKey;
         private static ICryptoTransform sTransformer;
 
         public static bool KeySet
         {
-            get { return sUserKey != null; }
+            get
+            {
+                return sUserKey != null;
+            }
         }
 
         internal static void SetKey(byte[] key)
@@ -24,6 +27,7 @@ namespace MaplePacketLib.Cryptography
                 Mode = CipherMode.ECB,
                 Padding = PaddingMode.PKCS7
             };
+
             using (aes)
             {
                 sTransformer = aes.CreateEncryptor();

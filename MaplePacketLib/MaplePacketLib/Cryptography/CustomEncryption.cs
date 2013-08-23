@@ -1,6 +1,6 @@
 ﻿namespace MaplePacketLib.Cryptography
 {
-    static class CustomEncryption
+    internal static class CustomEncryption
     {
         public static void Encrypt(byte[] data)
         {

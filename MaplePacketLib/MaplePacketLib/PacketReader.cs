@@ -44,7 +44,6 @@
             m_offset = 0;
         }
 
-
         /// <summary>
         /// Reads bytes from stream - From LittleEndianByteConverter by Shoftee
         /// </summary>
@@ -187,12 +186,14 @@
         }
 
         /// <summary>
-        /// Retrieves the inital buffer 
+        /// Retrieves a copy of the inital buffer 
         /// </summary>
         /// <returns>Initial buffer</returns>
         public byte[] ToArray()
         {
-            return m_buffer;
+            var final = new byte[m_buffer.Length];
+            System.Buffer.BlockCopy(m_buffer, 0, final, 0, m_buffer.Length);
+            return final;
         }
     }
 }

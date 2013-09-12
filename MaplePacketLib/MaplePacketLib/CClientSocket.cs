@@ -65,7 +65,7 @@ namespace MaplePacketLib
 
             for (int i = 0; i < 32; i++)
             {
-                if ((i % 4 == 0 ? key[i] != 0 : key[i] == 0) == false)
+                if(i % 4 != 0 && key[i] != 0)
                     throw new Exception("Invalid Aes Key format");
             }
 
@@ -152,7 +152,7 @@ namespace MaplePacketLib
             }
         }
 
-        private void Append(byte[] data, int start, int length)
+        private void Append(int length)
         {
             if (m_packetBuffer.Length - m_cursor < length)
             {
@@ -164,7 +164,7 @@ namespace MaplePacketLib
                 Array.Resize<byte>(ref m_packetBuffer, newSize);
             }
 
-            Buffer.BlockCopy(data, start, m_packetBuffer, m_cursor, length);
+            Buffer.BlockCopy(m_recvBuffer, 0, m_packetBuffer, m_cursor, length);
 
             m_cursor += length;
         }
@@ -209,15 +209,10 @@ namespace MaplePacketLib
                 return;
             }
 
-            Append(m_recvBuffer, 0, length);
+            Append(length);
 
-            while (true)
+            while (m_cursor < 4) //header room
             {
-                if (m_cursor < 4) //header room
-                {
-                    break;
-                }
-
                 int packetSize = MapleCipher.GetPacketLength(m_packetBuffer);
 
                 if (m_cursor < packetSize + 4) //header + packet room

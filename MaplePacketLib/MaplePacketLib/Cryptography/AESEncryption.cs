@@ -34,10 +34,10 @@ namespace MaplePacketLib.Cryptography
             }
         }
 
-        public static void Transform(byte[] data, byte[] IV)
+        public static void Transform(byte[] data, int size,byte[] IV)
         {
             byte[] morphKey = new byte[16];
-            int remaining = data.Length;
+            int remaining = size;
             int start = 0;
             int length = 0x5B0;
 

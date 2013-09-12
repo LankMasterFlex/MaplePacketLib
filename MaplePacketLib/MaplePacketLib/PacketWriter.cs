@@ -8,6 +8,8 @@ namespace MaplePacketLib
     /// </summary>
     public class PacketWriter : IDisposable
     {
+        public const int DefaultBufferSize = 32;
+
         private MemoryStream m_stream;
         private bool m_disposed;
 
@@ -30,7 +32,7 @@ namespace MaplePacketLib
         /// </summary>
         public PacketWriter()
         {
-            m_stream = new MemoryStream(32);
+            m_stream = new MemoryStream(DefaultBufferSize);
             m_disposed = false;
         }
 
@@ -64,10 +66,10 @@ namespace MaplePacketLib
         /// Writes a byte to the stream
         /// </summary>
         /// <param name="value">Value to be written</param>
-        public void WriteByte(int value = 0)
+        public void WriteByte(byte value = 0)
         {
             ThrowIfDisposed();
-            m_stream.WriteByte((byte)value);
+            m_stream.WriteByte(value);
         }
 
         /// <summary>
@@ -77,7 +79,7 @@ namespace MaplePacketLib
         public void WriteBool(bool value = false)
         {
             ThrowIfDisposed();
-            WriteByte(value ? 1 : 0);
+            WriteByte(value ? (byte)1 : (byte)0);
         }
 
         /// <summary>
@@ -178,58 +180,12 @@ namespace MaplePacketLib
         /// Writes a maple string to the stream
         /// </summary>
         /// <param name="value">Value to be written</param>
-        public void WriteMapleString(string value = "")
+        public void WriteMapleString(string value)
         {
             ThrowIfDisposed();
 
             WriteShort((short)value.Length);
             WriteString(value);
-        }
-
-        /// <summary>
-        /// Writes the value cased as T to the stream
-        /// Using not recommended.
-        /// </summary>
-        /// <typeparam name="T">Value type</typeparam>
-        /// <param name="value">Value to write</param>
-        public void Write<T>(object value)
-        {
-            ThrowIfDisposed();
-
-            Type type = typeof(T);
-
-            if (type == typeof(byte))
-            {
-                WriteByte((byte)value);
-            }
-            else if (type == typeof(short))
-            {
-                WriteShort((short)value);
-            }
-            else if (type == typeof(ushort))
-            {
-                WriteUShort((ushort)value);
-            }
-            else if (type == typeof(int))
-            {
-                WriteInt((int)value);
-            }
-            else if (type == typeof(uint))
-            {
-                WriteUInt((uint)value);
-            }
-            else if (type == typeof(long))
-            {
-                WriteLong((long)value);
-            }
-            else if (type == typeof(ulong))
-            {
-                WriteULong((ulong)value);
-            }
-            else
-            {
-                throw new Exception("TYPE NOT SUPPORTED");
-            }
         }
 
         /// <summary>
@@ -247,10 +203,11 @@ namespace MaplePacketLib
         /// </summary>
         public void Close()
         {
-            ThrowIfDisposed();
-
             m_disposed = true;
-            m_stream.Dispose();
+
+            if(m_stream != null)
+                m_stream.Dispose();
+
             m_stream = null;
         }
 
@@ -267,7 +224,6 @@ namespace MaplePacketLib
         /// </summary>
         public void Dispose()
         {
-            ThrowIfDisposed();
             Close();
         }
     }

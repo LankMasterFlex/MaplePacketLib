@@ -2,9 +2,8 @@
 {
     internal static class CustomEncryption
     {
-        public static void Encrypt(byte[] data)
+        public static void Encrypt(byte[] data,int size)
         {
-            int size = data.Length;
             int j;
             byte a, c;
             for (int i = 0; i < 3; i++)
@@ -36,9 +35,8 @@
                 }
             }
         }
-        public static void Decrypt(byte[] data)
+        public static void Decrypt(byte[] data, int size)
         {
-            int size = data.Length;
             int j;
             byte a, b, c;
             for (int i = 0; i < 3; i++)

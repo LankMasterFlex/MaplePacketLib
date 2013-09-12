@@ -4,7 +4,7 @@ namespace MaplePacketLib.Cryptography
 {
     internal sealed class MapleCipher
     {
-        private static readonly byte[] sShuffle = new byte[256]
+        private static readonly byte[] sShiftKey = new byte[256]
         {
             0xEC, 0x3F, 0x77, 0xA4, 0x45, 0xD0, 0x71, 0xBF, 0xB7, 0x98, 0x20, 0xFC, 0x4B, 0xE9, 0xB3, 0xE1,
             0x5C, 0x22, 0xF7, 0x0C, 0x44, 0x1B, 0x81, 0xBD, 0x63, 0x8D, 0xD4, 0xC3, 0xF2, 0x10, 0x19, 0xE0,
@@ -60,19 +60,19 @@ namespace MaplePacketLib.Cryptography
         public void Transform(byte[] data)
         {
             m_transformer(data);
-            byte[] newIV = Shuffle(m_IV);
+            byte[] newIV = ShiftIV(m_IV);
             m_IV = newIV;
         }
 
         private void EncryptTransform(byte[] data)
         {
-            CustomEncryption.Encrypt(data);
-            AESEncryption.Transform(data, m_IV);
+            CustomEncryption.Encrypt(data, data.Length);
+            AESEncryption.Transform(data, data.Length,m_IV);
         }
         private void DecryptTransform(byte[] data)
         {
-            AESEncryption.Transform(data, m_IV);
-            CustomEncryption.Decrypt(data);
+            AESEncryption.Transform(data, data.Length, m_IV);
+            CustomEncryption.Decrypt(data, data.Length);
         }
 
         public void GetHeaderToClient(int size, byte[] packet)
@@ -101,7 +101,7 @@ namespace MaplePacketLib.Cryptography
             return (packetHeader[0] + (packetHeader[1] << 8)) ^ (packetHeader[2] + (packetHeader[3] << 8));
         }
 
-        private static byte[] Shuffle(byte[] IV)
+        private static byte[] ShiftIV(byte[] IV)
         {
             byte[] start = new byte[4] { 0xF2, 0x53, 0x50, 0xC6 };
             for (int i = 0; i < 4; i++)
@@ -111,23 +111,22 @@ namespace MaplePacketLib.Cryptography
                 byte a = start[1];
                 byte b = a;
                 uint c, d;
-                b = sShuffle[b];
+                b = sShiftKey[b];
                 b -= inputByte;
                 start[0] += b;
                 b = start[2];
-                b ^= sShuffle[inputByte];
+                b ^= sShiftKey[inputByte];
                 a -= b;
                 start[1] = a;
                 a = start[3];
                 b = a;
                 a -= start[0];
-                b = sShuffle[b];
+                b = sShiftKey[b];
                 b += inputByte;
                 b ^= start[2];
                 start[2] = b;
-                a += sShuffle[inputByte];
+                a += sShiftKey[inputByte];
                 start[3] = a;
-
                 c = (uint)(start[0] + start[1] * 0x100 + start[2] * 0x10000 + start[3] * 0x1000000);
                 d = c;
                 c >>= 0x1D;

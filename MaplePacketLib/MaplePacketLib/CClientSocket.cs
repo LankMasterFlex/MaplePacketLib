@@ -61,12 +61,12 @@ namespace MaplePacketLib
                 throw new ArgumentNullException("key");
 
             if (key.Length != 32)
-                throw new Exception("Key length needs to be 32");
+                throw new ArgumentOutOfRangeException("Key length needs to be 32", "key");
 
             for (int i = 0; i < 32; i++)
             {
-                if(i % 4 != 0 && key[i] != 0)
-                    throw new Exception("Invalid Aes Key format");
+                if (i % 4 != 0 && key[i] != 0)
+                    throw new ArgumentException("Invalid Aes Key format", "key");
             }
 
             AESEncryption.SetKey(key);
@@ -108,7 +108,7 @@ namespace MaplePacketLib
 
             if (m_connected)
             {
-                throw new Exception("Socket is already connected");
+                throw new InvalidOperationException("Socket is already connected");
             }
 
             m_socket.BeginConnect(ip, port, EndConnect, state);
@@ -247,19 +247,19 @@ namespace MaplePacketLib
 
             if (!m_connected)
             {
-                throw new Exception("Socket is not connected");
+                throw new InvalidOperationException("Socket is not connected");
             }
 
             if (m_clientCipher == null)
             {
-                throw new Exception("Handshake has not been received yet");
+                throw new InvalidOperationException("Handshake has not been received yet");
             }
 
             byte[] data = packet.ToArray();
 
             if (data.Length < 2)
             {
-                throw new Exception("Packet length must be greater than 2");
+                throw new ArgumentOutOfRangeException("Packet length must be greater than 2", "packet");
             }
 
             lock (m_sendLock)

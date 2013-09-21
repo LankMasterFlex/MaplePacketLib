@@ -80,10 +80,12 @@ namespace MaplePacketLib
         {
             if (!AESEncryption.KeySet)
             {
-                throw new Exception("Aes key is not set!  Please set it with CClientSocket.SetAesKey");
+                throw new InvalidOperationException("Aes key is not set. Please set it with SetDefaultAesKey");
             }
 
             m_socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            m_socket.NoDelay = true;
+
             m_recipient = eventRecipient;
 
             m_disposed = false;
@@ -206,12 +208,17 @@ namespace MaplePacketLib
             if (length == 0 || error != SocketError.Success)
             {
                 Disconnect();
-                return;
             }
+            else
+            {   Append(length);
+                ManipulateBuffer();
+                Receive(ReceiveSize, PacketCallback);
+            }
+        }
 
-            Append(length);
-
-            while (m_cursor < 4) //header room
+        private void ManipulateBuffer()
+        {
+            while (m_cursor > 4) //header room
             {
                 int packetSize = MapleCipher.GetPacketLength(m_packetBuffer);
 
@@ -233,8 +240,6 @@ namespace MaplePacketLib
 
                 m_recipient.OnPacket(packetBuffer);
             }
-
-            Receive(ReceiveSize, PacketCallback);
         }
 
         /// <summary>

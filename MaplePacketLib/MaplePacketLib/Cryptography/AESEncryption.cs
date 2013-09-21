@@ -5,25 +5,21 @@ namespace MaplePacketLib.Cryptography
 {
     internal static class AESEncryption
     {
-        private static byte[] sUserKey;
         private static ICryptoTransform sTransformer;
 
         public static bool KeySet
         {
             get
             {
-                return sUserKey != null;
+                return sTransformer != default(ICryptoTransform);
             }
         }
 
         internal static void SetKey(byte[] key)
         {
-            sUserKey = new byte[32];
-            System.Buffer.BlockCopy(key, 0, sUserKey, 0, 32);
-
             RijndaelManaged aes = new RijndaelManaged()
             {
-                Key = sUserKey,
+                Key = key,
                 Mode = CipherMode.ECB,
                 Padding = PaddingMode.PKCS7
             };
@@ -34,7 +30,7 @@ namespace MaplePacketLib.Cryptography
             }
         }
 
-        public static void Transform(byte[] data, int size,byte[] IV)
+        public static void Transform(byte[] data, int size, byte[] IV)
         {
             byte[] morphKey = new byte[16];
             int remaining = size;

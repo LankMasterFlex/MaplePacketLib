@@ -14,8 +14,9 @@ namespace MaplePacketLib
         /// </summary>
         public const short ReceiveSize = 1024;
 
-        private readonly Socket m_socket;
         private readonly IMapleClient m_recipient;
+
+        private Socket m_socket;
 
         private MapleCipher m_clientCipher;
         private MapleCipher m_serverCipher;
@@ -52,6 +53,17 @@ namespace MaplePacketLib
         }
 
         /// <summary>
+        /// Gets a value that indicates whether the client is disposed
+        /// </summary>
+        public bool Disposed
+        {
+            get
+            {
+                return m_disposed;
+            }
+        }
+
+        /// <summary>
         /// Sets the Aes key for encryption
         /// </summary>
         /// <param name="key">32 byte Aes key</param>
@@ -83,9 +95,6 @@ namespace MaplePacketLib
                 throw new InvalidOperationException("Aes key is not set. Please set it with SetDefaultAesKey");
             }
 
-            m_socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            m_socket.NoDelay = true;
-
             m_recipient = eventRecipient;
 
             m_disposed = false;
@@ -113,6 +122,8 @@ namespace MaplePacketLib
                 throw new InvalidOperationException("Socket is already connected");
             }
 
+            m_socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            m_socket.NoDelay = true;
             m_socket.BeginConnect(ip, port, EndConnect, state);
         }
 
@@ -135,18 +146,18 @@ namespace MaplePacketLib
 
                 if (m_connected)
                 {
-                    Receive(16, HandshakeCallback);
+                    Receive();
                 }
             }
         }
 
-        private void Receive(int length, AsyncCallback callback, object state = null)
+        private void Receive()
         {
             if (!m_connected || m_disposed) { return; }
 
             SocketError error = SocketError.Success;
 
-            m_socket.BeginReceive(m_recvBuffer, 0, length, SocketFlags.None, out error, callback, state);
+            m_socket.BeginReceive(m_recvBuffer, 0, ReceiveSize, SocketFlags.None, out error, PacketCallback, null);
 
             if (error != SocketError.Success)
             {
@@ -159,7 +170,7 @@ namespace MaplePacketLib
             if (m_packetBuffer.Length - m_cursor < length)
             {
                 int newSize = m_packetBuffer.Length * 2;
-                
+
                 while (newSize < m_cursor + length)
                     newSize *= 2;
 
@@ -171,32 +182,6 @@ namespace MaplePacketLib
             m_cursor += length;
         }
 
-        private void HandshakeCallback(IAsyncResult iar)
-        {
-            if (!m_connected || m_disposed) { return; }
-
-            SocketError error = SocketError.Success;
-
-            int length = m_socket.EndReceive(iar, out error);
-
-            if (length < 16 || error != SocketError.Success)
-            {
-                Disconnect();
-                return;
-            }
-
-            PacketReader packet = new PacketReader(m_recvBuffer);
-            packet.ReadShort(); //length header
-            short major = packet.ReadShort();
-            string minor = packet.ReadMapleString();
-            m_clientCipher = new MapleCipher(major, packet.ReadBytes(4), MapleCipher.CipherMode.Encrypt);
-            m_serverCipher = new MapleCipher(major, packet.ReadBytes(4), MapleCipher.CipherMode.Decrypt);
-            byte locale = packet.ReadByte();
-
-            m_recipient.OnHandshake(major, minor, locale);
-
-            Receive(ReceiveSize, PacketCallback);
-        }
         private void PacketCallback(IAsyncResult iar)
         {
             if (!m_connected || m_disposed) { return; }
@@ -210,35 +195,66 @@ namespace MaplePacketLib
                 Disconnect();
             }
             else
-            {   Append(length);
+            {
+                Append(length);
                 ManipulateBuffer();
-                Receive(ReceiveSize, PacketCallback);
+                Receive();
             }
         }
 
         private void ManipulateBuffer()
         {
-            while (m_cursor > 4) //header room
+            if (m_clientCipher == null || m_serverCipher == null)
             {
-                int packetSize = MapleCipher.GetPacketLength(m_packetBuffer);
-
-                if (m_cursor < packetSize + 4) //header + packet room
+                if (m_cursor >= 2)
                 {
-                    break;
+                    short packetSize = BitConverter.ToInt16(m_packetBuffer, 0);
+
+                    if (m_cursor >= packetSize + 2)
+                    {
+                        byte[] buffer = new byte[packetSize];
+                        Buffer.BlockCopy(m_packetBuffer, 2, buffer, 0, packetSize);
+
+                        PacketReader packet = new PacketReader(buffer);
+                        
+                        short major = packet.ReadShort();
+                        string minor = packet.ReadMapleString();
+
+                        m_clientCipher = new MapleCipher(major, packet.ReadBytes(4), MapleCipher.CipherMode.Encrypt);
+                        m_serverCipher = new MapleCipher(major, packet.ReadBytes(4), MapleCipher.CipherMode.Decrypt);
+                        
+                        byte locale = packet.ReadByte();
+
+                        m_recipient.OnHandshake(major, minor, locale);
+
+                        m_cursor = 0;
+                    }
                 }
-
-                byte[] packetBuffer = new byte[packetSize];
-                Buffer.BlockCopy(m_packetBuffer, 4, packetBuffer, 0, packetSize); //copy packet
-                m_serverCipher.Transform(packetBuffer); //decrypt
-
-                m_cursor -= packetSize + 4; //fix len
-
-                if (m_cursor > 0) //move reamining bytes
+            }
+            else
+            {
+                while (m_cursor > 4) //header room
                 {
-                    Buffer.BlockCopy(m_packetBuffer, packetSize + 4, m_packetBuffer, 0, m_cursor);
-                }
+                    int packetSize = MapleCipher.GetPacketLength(m_packetBuffer);
 
-                m_recipient.OnPacket(packetBuffer);
+                    if (m_cursor < packetSize + 4) //header + packet room
+                    {
+                        break;
+                    }
+
+                    byte[] packetBuffer = new byte[packetSize];
+                    Buffer.BlockCopy(m_packetBuffer, 4, packetBuffer, 0, packetSize); //copy packet
+                    m_serverCipher.Transform(packetBuffer); //decrypt
+
+                    m_cursor -= packetSize + 4; //fix len
+
+                    if (m_cursor > 0) //move reamining bytes
+                    {
+                        Buffer.BlockCopy(m_packetBuffer, packetSize + 4, m_packetBuffer, 0, m_cursor);
+                    }
+
+                    m_recipient.OnPacket(packetBuffer);
+                }
             }
         }
 
@@ -306,8 +322,10 @@ namespace MaplePacketLib
             if (m_connected)
             {
                 m_connected = false;
+
                 m_socket.Shutdown(SocketShutdown.Both);
-                m_socket.Disconnect(true);
+                m_socket.Disconnect(false);
+                m_socket.Dispose();
 
                 m_clientCipher = null;
                 m_serverCipher = null;
@@ -332,8 +350,6 @@ namespace MaplePacketLib
             Disconnect();
 
             m_disposed = true;
-
-            m_socket.Dispose();
 
             m_packetBuffer = null;
             m_recvBuffer = null;

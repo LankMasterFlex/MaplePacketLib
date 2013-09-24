@@ -95,6 +95,11 @@ namespace MaplePacketLib
                 throw new InvalidOperationException("Aes key is not set. Please set it with SetDefaultAesKey");
             }
 
+            if (eventRecipient == null)
+            {
+                throw new ArgumentNullException("eventRecipient");
+            }
+
             m_recipient = eventRecipient;
 
             m_disposed = false;
@@ -271,7 +276,7 @@ namespace MaplePacketLib
                 throw new InvalidOperationException("Socket is not connected");
             }
 
-            if (m_clientCipher == null)
+            if (m_clientCipher == null || m_serverCipher == null)
             {
                 throw new InvalidOperationException("Handshake has not been received yet");
             }
@@ -347,15 +352,18 @@ namespace MaplePacketLib
         /// </summary>
         public void Dispose()
         {
-            Disconnect();
+            if (!m_disposed)
+            {
+                Disconnect();
 
-            m_disposed = true;
+                m_disposed = true;
 
-            m_packetBuffer = null;
-            m_recvBuffer = null;
-            m_cursor = 0;
+                m_packetBuffer = null;
+                m_recvBuffer = null;
+                m_cursor = 0;
 
-            m_sendLock = null;
+                m_sendLock = null;
+            }
         }
     }
 }

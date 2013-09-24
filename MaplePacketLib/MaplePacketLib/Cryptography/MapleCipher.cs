@@ -60,8 +60,7 @@ namespace MaplePacketLib.Cryptography
         public void Transform(byte[] data)
         {
             m_transformer(data);
-            byte[] newIV = ShiftIV(m_IV);
-            m_IV = newIV;
+            m_IV = ShiftIV(m_IV);
         }
 
         private void EncryptTransform(byte[] data)

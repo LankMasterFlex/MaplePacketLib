@@ -32,6 +32,16 @@ namespace ClientTest
         public void OnPacket(byte[] packet)
         {
             Console.WriteLine("Dataload: {0}", BitConverter.ToString(packet));
+
+            PacketReader reader = new PacketReader(packet);
+            short opcode = reader.ReadShort();
+
+            switch (opcode)
+            {
+                case 0x11: //ping
+                    m_socket.Send(new PacketWriter(0x46, 2)); //pong
+                    break;
+            }
         }
 
         public void OnDisconnected()

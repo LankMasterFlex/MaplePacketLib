@@ -60,7 +60,7 @@ namespace MaplePacketLib.Cryptography
         public void Transform(byte[] data)
         {
             m_transformer(data);
-            m_IV = ShiftIV(m_IV);
+            ShiftIV();
         }
 
         private void EncryptTransform(byte[] data)
@@ -76,23 +76,22 @@ namespace MaplePacketLib.Cryptography
 
         public void GetHeaderToClient(int size, byte[] packet)
         {
-            int a = m_IV[3] * 0x100 + m_IV[2];
-            a ^= -(m_majorVersion + 1);
-            int b = a ^ size;
-            packet[0] = (byte)(a % 0x100);
+            var a = (m_IV[3] * 0x100 + m_IV[2]) ^ -(m_majorVersion + 1);
+            var b = a ^ size;
+            packet[0] = (byte)a;
             packet[1] = (byte)((a - packet[0]) / 0x100);
             packet[2] = (byte)(b ^ 0x100);
             packet[3] = (byte)((b - packet[2]) / 0x100);
         }
-        public void GetHeaderToServer(int size, byte[] packet)
+        public unsafe void GetHeaderToServer(int size, byte[] packet)
         {
-            int a = m_IV[3] * 0x100 + m_IV[2];
-            a = a ^ (m_majorVersion);
-            int b = a ^ size;
-            packet[0] = (byte)(a % 0x100);
-            packet[1] = (byte)(a / 0x100);
-            packet[2] = (byte)(b % 0x100);
-            packet[3] = (byte)(b / 0x100);
+            var a = (m_IV[3] * 0x100 + m_IV[2]) ^ m_majorVersion;
+            var b = a ^ size;
+
+            packet[0] = (byte)a;
+            packet[1] = (byte)(a >> 8);
+            packet[2] = (byte)b;
+            packet[3] = (byte)(b >> 8);
         }
 
         public static int GetPacketLength(byte[] packetHeader)
@@ -100,45 +99,24 @@ namespace MaplePacketLib.Cryptography
             return (packetHeader[0] + (packetHeader[1] << 8)) ^ (packetHeader[2] + (packetHeader[3] << 8));
         }
 
-        private static byte[] ShiftIV(byte[] IV)
+        private unsafe void ShiftIV()
         {
-            byte[] start = new byte[4] { 0xF2, 0x53, 0x50, 0xC6 };
+            byte[] newIV = new byte[4] { 0xF2, 0x53, 0x50, 0xC6 };
+
             for (int i = 0; i < 4; i++)
             {
-                byte inputByte = IV[i];
+                byte input = m_IV[i];
+                byte tableInput = sShiftKey[input];
+                newIV[0] += (byte)(sShiftKey[newIV[1]] - input);
+                newIV[1] -= (byte)(newIV[2] ^ tableInput);
+                newIV[2] ^= (byte)(sShiftKey[newIV[3]] + input);
+                newIV[3] -= (byte)(newIV[0] - tableInput);
 
-                byte a = start[1];
-                byte b = a;
-                uint c, d;
-                b = sShiftKey[b];
-                b -= inputByte;
-                start[0] += b;
-                b = start[2];
-                b ^= sShiftKey[inputByte];
-                a -= b;
-                start[1] = a;
-                a = start[3];
-                b = a;
-                a -= start[0];
-                b = sShiftKey[b];
-                b += inputByte;
-                b ^= start[2];
-                start[2] = b;
-                a += sShiftKey[inputByte];
-                start[3] = a;
-                c = (uint)(start[0] + start[1] * 0x100 + start[2] * 0x10000 + start[3] * 0x1000000);
-                d = c;
-                c >>= 0x1D;
-                d <<= 0x03;
-                c |= d;
-                start[0] = (byte)(c % 0x100);
-                c /= 0x100;
-                start[1] = (byte)(c % 0x100);
-                c /= 0x100;
-                start[2] = (byte)(c % 0x100);
-                start[3] = (byte)(c / 0x100);
+                fixed (byte* ptr = newIV)
+                    *(uint*)ptr = (*(uint*)ptr << 3) | (*(uint*)ptr >> 32 - 3); //RC6 ROL 3
             }
-            return start;
+
+            Buffer.BlockCopy(newIV, 0, m_IV, 0, 4);
         }
     }
 }

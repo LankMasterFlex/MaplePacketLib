@@ -45,26 +45,6 @@
         }
 
         /// <summary>
-        /// Reads bytes from stream - From LittleEndianByteConverter by Shoftee
-        /// </summary>
-        /// <param name="count">Bytes to read</param>
-        /// <returns>Read value</returns>
-        private long FromBytes(int count)
-        {
-            long result = 0;
-            int position = (m_offset + count) - 1;
-
-            for (; position >= m_offset; position--)
-            {
-                result = (result << 8) | m_buffer[position];
-            }
-
-            m_offset += count;
-
-            return result;
-        }
-
-        /// <summary>
         /// Reads a byte array
         /// </summary>
         /// <param name="length">Amount of bytes to be read</param>
@@ -99,9 +79,18 @@
         /// Reads a short from the stream
         /// </summary>
         /// <returns>A short</returns>
-        public short ReadShort()
+        public unsafe short ReadShort()
         {
-            return (short)FromBytes(2);
+            short value;
+
+            fixed (byte* ptr = m_buffer)
+            {
+                value = *(short*)(ptr + m_offset);
+            }
+
+            m_offset += 2;
+
+            return value;
         }
 
         /// <summary>
@@ -110,16 +99,25 @@
         /// <returns>A unsigned short</returns>
         public ushort ReadUShort()
         {
-            return (ushort)FromBytes(2);
+            return (ushort)ReadShort();
         }
 
         /// <summary>
         /// Reads a int from the stream
         /// </summary>
         /// <returns>A int</returns>
-        public int ReadInt()
+        public unsafe int ReadInt()
         {
-            return (int)FromBytes(4);
+            int value;
+
+            fixed (byte* ptr = m_buffer)
+            {
+                value = *(int*)(ptr + m_offset);
+            }
+
+            m_offset += 4;
+
+            return value;
         }
 
         /// <summary>
@@ -128,16 +126,25 @@
         /// <returns>A unsigned int</returns>
         public uint ReadUInt()
         {
-            return (uint)FromBytes(4);
+            return (uint)ReadInt();
         }
 
         /// <summary>
         /// Reads a long from the stream
         /// </summary>
         /// <returns>A long</returns>
-        public long ReadLong()
+        public unsafe long ReadLong()
         {
-            return FromBytes(8);
+            long value;
+
+            fixed (byte* ptr = m_buffer)
+            {
+                value = *(long*)(ptr + m_offset);
+            }
+
+            m_offset += 8;
+
+            return value;
         }
 
         /// <summary>
@@ -146,7 +153,7 @@
         /// <returns>A unsigned long</returns>
         public ulong ReadULong()
         {
-            return (ulong)FromBytes(8);
+            return (ulong)ReadLong();
         }
 
         /// <summary>

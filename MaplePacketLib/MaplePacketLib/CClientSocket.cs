@@ -21,6 +21,7 @@ namespace MaplePacketLib
         private MapleCipher m_clientCipher;
         private MapleCipher m_serverCipher;
 
+        private bool m_encrypted;
         private bool m_disposed;
         private bool m_connected;
 
@@ -102,6 +103,7 @@ namespace MaplePacketLib
 
             m_recipient = eventRecipient;
 
+            m_encrypted = false;
             m_disposed = false;
             m_connected = false;
 
@@ -209,34 +211,7 @@ namespace MaplePacketLib
 
         private void ManipulateBuffer()
         {
-            if (m_clientCipher == null || m_serverCipher == null)
-            {
-                if (m_cursor >= 2)
-                {
-                    short packetSize = BitConverter.ToInt16(m_packetBuffer, 0);
-
-                    if (m_cursor >= packetSize + 2)
-                    {
-                        byte[] buffer = new byte[packetSize];
-                        Buffer.BlockCopy(m_packetBuffer, 2, buffer, 0, packetSize);
-
-                        PacketReader packet = new PacketReader(buffer);
-                        
-                        short major = packet.ReadShort();
-                        string minor = packet.ReadMapleString();
-
-                        m_clientCipher = new MapleCipher(major, packet.ReadBytes(4), MapleCipher.CipherMode.Encrypt);
-                        m_serverCipher = new MapleCipher(major, packet.ReadBytes(4), MapleCipher.CipherMode.Decrypt);
-                        
-                        byte locale = packet.ReadByte();
-
-                        m_recipient.OnHandshake(major, minor, locale);
-
-                        m_cursor = 0;
-                    }
-                }
-            }
-            else
+            if (m_encrypted)
             {
                 while (m_cursor > 4) //header room
                 {
@@ -261,7 +236,33 @@ namespace MaplePacketLib
                     m_recipient.OnPacket(packetBuffer);
                 }
             }
+            else if (m_cursor >= 2)
+            {
+                short packetSize = BitConverter.ToInt16(m_packetBuffer, 0);
+
+                if (m_cursor >= packetSize + 2)
+                {
+                    byte[] buffer = new byte[packetSize];
+                    Buffer.BlockCopy(m_packetBuffer, 2, buffer, 0, packetSize);
+
+                    PacketReader packet = new PacketReader(buffer);
+
+                    short major = packet.ReadShort();
+                    string minor = packet.ReadMapleString();
+
+                    m_clientCipher = new MapleCipher(major, packet.ReadBytes(4), MapleCipher.CipherMode.Encrypt);
+                    m_serverCipher = new MapleCipher(major, packet.ReadBytes(4), MapleCipher.CipherMode.Decrypt);
+
+                    byte locale = packet.ReadByte();
+
+                    m_encrypted = true;
+                    m_recipient.OnHandshake(major, minor, locale);
+
+                    m_cursor = 0;
+                }
+            }
         }
+
 
         /// <summary>
         /// Encrypts and sends packet to server
@@ -276,7 +277,7 @@ namespace MaplePacketLib
                 throw new InvalidOperationException("Socket is not connected");
             }
 
-            if (m_clientCipher == null || m_serverCipher == null)
+            if (!m_encrypted)
             {
                 throw new InvalidOperationException("Handshake has not been received yet");
             }
@@ -313,8 +314,6 @@ namespace MaplePacketLib
                     offset += sent;
                 }
             }
-
-            packet.Close();
         }
 
         /// <summary>
@@ -327,6 +326,7 @@ namespace MaplePacketLib
             if (m_connected)
             {
                 m_connected = false;
+                m_encrypted = false;
 
                 m_socket.Shutdown(SocketShutdown.Both);
                 m_socket.Disconnect(false);

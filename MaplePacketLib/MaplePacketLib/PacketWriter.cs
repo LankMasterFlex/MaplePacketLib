@@ -14,6 +14,17 @@ namespace MaplePacketLib
         private bool m_disposed;
 
         /// <summary>
+        /// Returns whether this object is disposed
+        /// </summary>
+        public bool Disposed
+        {
+            get
+            {
+                return m_disposed;
+            }
+        }
+
+        /// <summary>
         /// Position of stream
         /// </summary>
         public int Position
@@ -24,6 +35,9 @@ namespace MaplePacketLib
             }
             set
             {
+                if (value <= 0)
+                    throw new IndexOutOfRangeException();
+
                 m_stream.Position = value;
             }
         }

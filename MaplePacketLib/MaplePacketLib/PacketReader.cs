@@ -26,7 +26,7 @@
         /// <summary>
         /// Bytes left to read in the stream
         /// </summary>
-        public int Avaiable
+        public int Available
         {
             get
             {

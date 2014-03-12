@@ -88,10 +88,10 @@ namespace MaplePacketLib.Cryptography
             var a = (m_IV[3] * 0x100 + m_IV[2]) ^ m_majorVersion;
             var b = a ^ size;
 
-            packet[0] = (byte)a;
-            packet[1] = (byte)(a >> 8);
-            packet[2] = (byte)b;
-            packet[3] = (byte)(b >> 8);
+            packet[0] = (byte)(a % 0x100);
+            packet[1] = (byte)(a / 0x100);
+            packet[2] = (byte)(b % 0x100);
+            packet[3] = (byte)(b / 0x100);
         }
 
         public static int GetPacketLength(byte[] packetHeader)
@@ -107,6 +107,7 @@ namespace MaplePacketLib.Cryptography
             {
                 byte input = m_IV[i];
                 byte tableInput = sShiftKey[input];
+
                 newIV[0] += (byte)(sShiftKey[newIV[1]] - input);
                 newIV[1] -= (byte)(newIV[2] ^ tableInput);
                 newIV[2] ^= (byte)(sShiftKey[newIV[3]] + input);

@@ -30,6 +30,7 @@ namespace MaplePacketLib
         private int m_cursor;
 
         private object m_sendLock;
+        private object m_eventLock;
 
         /// <summary>
         /// Gets the event recipient assigned at the constructor
@@ -112,6 +113,7 @@ namespace MaplePacketLib
             m_cursor = 0;
 
             m_sendLock = new object();
+            m_eventLock = new object();
         }
 
         /// <summary>
@@ -323,19 +325,23 @@ namespace MaplePacketLib
         {
             ThrowIfDisposed();
 
-            if (m_connected)
+            lock (m_eventLock)
             {
-                m_connected = false;
-                m_encrypted = false;
+                if (m_connected)
+                {
+                    m_connected = false;
+                    m_encrypted = false;
+                    m_cursor = 0;
 
-                m_socket.Shutdown(SocketShutdown.Both);
-                m_socket.Disconnect(false);
-                m_socket.Dispose();
+                    m_socket.Shutdown(SocketShutdown.Both);
+                    m_socket.Disconnect(false);
+                    m_socket.Dispose();
 
-                m_clientCipher = null;
-                m_serverCipher = null;
+                    m_clientCipher = null;
+                    m_serverCipher = null;
 
-                m_recipient.OnDisconnected();
+                    m_recipient.OnDisconnected();
+                }
             }
         }
 
@@ -360,9 +366,9 @@ namespace MaplePacketLib
 
                 m_packetBuffer = null;
                 m_recvBuffer = null;
-                m_cursor = 0;
-
+                
                 m_sendLock = null;
+                m_eventLock = null;
             }
         }
     }

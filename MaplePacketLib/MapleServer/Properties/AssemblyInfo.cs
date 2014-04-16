@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("ClientTest")]
+[assembly: AssemblyTitle("MapleServer")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("ClientTest")]
-[assembly: AssemblyCopyright("Copyright ©  2013")]
+[assembly: AssemblyCompany("Hewlett-Packard Company")]
+[assembly: AssemblyProduct("MapleServer")]
+[assembly: AssemblyCopyright("Copyright © Hewlett-Packard Company 2014")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("c7f86f68-6b7a-4a10-b9c2-500cbd34515f")]
+[assembly: Guid("19a3df40-ec0c-44c7-9928-a96e7eb24f68")]
 
 // Version information for an assembly consists of the following four values:
 //

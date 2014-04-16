@@ -23,55 +23,128 @@ namespace MaplePacketLib.Cryptography
             0x96, 0x41, 0x74, 0xAC, 0x52, 0x33, 0xF0, 0xD9, 0x29, 0x80, 0xB1, 0x16, 0xD3, 0xAB, 0x91, 0xB9,
             0x84, 0x7F, 0x61, 0x1E, 0xCF, 0xC5, 0xD1, 0x56, 0x3D, 0xCA, 0xF4, 0x05, 0xC6, 0xE5, 0x08, 0x49
         };
+        
+        private readonly short m_majorVersion;
+        private readonly byte[] m_IV;
+        private readonly AesCipher m_aesCipher;
+        private readonly Action<byte[]> m_transformer;
 
-        public enum CipherMode : byte
-        {
-            Encrypt,
-            Decrypt
-        }
+        public const int IVLength = 4;
 
-        private short m_majorVersion;
-        private byte[] m_IV;
-        private CipherMode m_direction;
-
-        private Action<byte[]> m_transformer;
-
-        public short MajorVersion
-        {
-            get { return m_majorVersion; }
-        }
-        public CipherMode TransformationDirection
-        {
-            get { return m_direction; }
-        }
-
-        public MapleCipher(short majorVersion, byte[] IV, CipherMode transformDirection)
+        public MapleCipher(short majorVersion, byte[] IV, AesCipher aes,CipherType transformDirection)
         {
             m_majorVersion = majorVersion;
 
-            m_IV = new byte[4];
-            Buffer.BlockCopy(IV, 0, m_IV, 0, 4);
+            m_IV = new byte[IVLength];
+            Buffer.BlockCopy(IV, 0, m_IV, 0, IVLength);
 
-            m_direction = transformDirection;
+            m_aesCipher = aes;
 
-            m_transformer = m_direction == CipherMode.Encrypt ? new Action<byte[]>(EncryptTransform) : new Action<byte[]>(DecryptTransform);
+            m_transformer =
+                transformDirection == CipherType.Encrypt ? new Action<byte[]>(EncryptTransform) : new Action<byte[]>(DecryptTransform);
         }
 
-        public void Transform(byte[] data)
+        public unsafe void Transform(byte[] data)
         {
             m_transformer(data);
-            ShiftIV();
+
+            byte[] newIV = new byte[IVLength] { 0xF2, 0x53, 0x50, 0xC6 };
+
+            for (int i = 0; i < IVLength; i++)
+            {
+                byte input = m_IV[i];
+                byte tableInput = sShiftKey[input];
+
+                newIV[0] += (byte)(sShiftKey[newIV[1]] - input);
+                newIV[1] -= (byte)(newIV[2] ^ tableInput);
+                newIV[2] ^= (byte)(sShiftKey[newIV[3]] + input);
+                newIV[3] -= (byte)(newIV[0] - tableInput);
+
+                fixed (byte* ptr = newIV)
+                    *(uint*)ptr = (*(uint*)ptr << 3) | (*(uint*)ptr >> 32 - 3); //RC6 ROL 3
+            }
+
+            Buffer.BlockCopy(newIV, 0, m_IV, 0, IVLength);
         }
 
         private void EncryptTransform(byte[] data)
         {
-            CustomEncryption.Encrypt(data, data.Length);
-            AESEncryption.Transform(data, data.Length,m_IV);
+            int size = data.Length;
+
+            int j;
+            byte a, c;
+            for (int i = 0; i < 3; i++)
+            {
+                a = 0;
+                for (j = size; j > 0; j--)
+                {
+                    c = data[size - j];
+                    c = RollLeft(c, 3);
+                    c = (byte)(c + j);
+                    c ^= a;
+                    a = c;
+                    c = RollRight(a, j);
+                    c ^= 0xFF;
+                    c += 0x48;
+                    data[size - j] = c;
+                }
+                a = 0;
+                for (j = data.Length; j > 0; j--)
+                {
+                    c = data[j - 1];
+                    c = RollLeft(c, 4);
+                    c = (byte)(c + j);
+                    c ^= a;
+                    a = c;
+                    c ^= 0x13;
+                    c = RollRight(c, 3);
+                    data[j - 1] = c;
+                }
+            }
+
+            m_aesCipher.Transform(data, m_IV);
         }
         private void DecryptTransform(byte[] data)
         {
-            AESEncryption.Transform(data, data.Length, m_IV);
-            CustomEncryption.Decrypt(data, data.Length);
+            int size = data.Length;
+
+            m_aesCipher.Transform(data, m_IV);
+
+
+            int j;
+            byte a, b, c;
+            for (int i = 0; i < 3; i++)
+            {
+                a = 0;
+                b = 0;
+                for (j = size; j > 0; j--)
+                {
+                    c = data[j - 1];
+                    c = RollLeft(c, 3);
+                    c ^= 0x13;
+                    a = c;
+                    c ^= b;
+                    c = (byte)(c - j);
+                    c = RollRight(c, 4);
+                    b = a;
+                    data[j - 1] = c;
+                }
+                a = 0;
+                b = 0;
+                for (j = size; j > 0; j--)
+                {
+                    c = data[size - j];
+                    c -= 0x48;
+                    c ^= 0xFF;
+                    c = RollLeft(c, j);
+                    a = c;
+                    c ^= b;
+                    c = (byte)(c - j);
+                    c = RollRight(c, 3);
+                    b = a;
+                    data[size - j] = c;
+                }
+            }
         }
 
         public void GetHeaderToClient(int size, byte[] packet)
@@ -83,7 +156,7 @@ namespace MaplePacketLib.Cryptography
             packet[2] = (byte)(b ^ 0x100);
             packet[3] = (byte)((b - packet[2]) / 0x100);
         }
-        public unsafe void GetHeaderToServer(int size, byte[] packet)
+        public void GetHeaderToServer(int size, byte[] packet)
         {
             var a = (m_IV[3] * 0x100 + m_IV[2]) ^ m_majorVersion;
             var b = a ^ size;
@@ -99,25 +172,15 @@ namespace MaplePacketLib.Cryptography
             return (packetHeader[0] + (packetHeader[1] << 8)) ^ (packetHeader[2] + (packetHeader[3] << 8));
         }
 
-        private unsafe void ShiftIV()
+        private static byte RollLeft(byte value, int shift)
         {
-            byte[] newIV = new byte[4] { 0xF2, 0x53, 0x50, 0xC6 };
-
-            for (int i = 0; i < 4; i++)
-            {
-                byte input = m_IV[i];
-                byte tableInput = sShiftKey[input];
-
-                newIV[0] += (byte)(sShiftKey[newIV[1]] - input);
-                newIV[1] -= (byte)(newIV[2] ^ tableInput);
-                newIV[2] ^= (byte)(sShiftKey[newIV[3]] + input);
-                newIV[3] -= (byte)(newIV[0] - tableInput);
-
-                fixed (byte* ptr = newIV)
-                    *(uint*)ptr = (*(uint*)ptr << 3) | (*(uint*)ptr >> 32 - 3); //RC6 ROL 3
-            }
-
-            Buffer.BlockCopy(newIV, 0, m_IV, 0, 4);
+            uint num = (uint)(value << (shift % 8));
+            return (byte)((num & 0xff) | (num >> 8));
+        }
+        private static byte RollRight(byte value, int shift)
+        {
+            uint num = (uint)((value << 8) >> (shift % 8));
+            return (byte)((num & 0xff) | (num >> 8));
         }
     }
 }

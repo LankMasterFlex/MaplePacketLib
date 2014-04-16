@@ -1,177 +1,106 @@
-﻿namespace MaplePacketLib
+﻿using System;
+
+namespace MaplePacketLib
 {
-    /// <summary>
-    /// Class used to read a little endian byte stream
-    /// </summary>
     public class PacketReader
     {
         private readonly byte[] m_buffer;
-        private int m_offset;
+        private int m_index;
 
-        /// <summary>
-        /// Position of stream
-        /// </summary>
         public int Position
         {
             get
             {
-                return m_offset;
-            }
-            set
-            {
-                m_offset = value;
+                return m_index;
             }
         }
-
-        /// <summary>
-        /// Bytes left to read in the stream
-        /// </summary>
         public int Available
         {
             get
             {
-                return m_buffer.Length - m_offset;
+                return m_buffer.Length - m_index;
             }
         }
 
-        /// <summary>
-        /// Creates a new instance of PacketReader
-        /// </summary>
-        /// <param name="buffer">Stream to read from</param>
-        public PacketReader(params byte[] buffer)
+        public PacketReader(byte[] packet)
         {
-            m_buffer = buffer;
-            m_offset = 0;
+            m_buffer = packet;
+            m_index = 0;
         }
 
-        /// <summary>
-        /// Reads a byte array
-        /// </summary>
-        /// <param name="length">Amount of bytes to be read</param>
-        /// <returns>A byte array</returns>
-        public byte[] ReadBytes(int length)
+        private void CheckLength(int length)
         {
-            var result = new byte[length];
-            System.Buffer.BlockCopy(m_buffer, m_offset, result, 0, length);
-            m_offset += length;
-            return result;
+            if (m_index + length > m_buffer.Length || length < 0)
+                throw new PacketException("Not enough space");
         }
 
-        /// <summary>
-        /// Reads a byte from the stream
-        /// </summary>
-        /// <returns>A byte</returns>
         public byte ReadByte()
         {
-            return m_buffer[m_offset++];
+            CheckLength(1);
+            return m_buffer[m_index++];
         }
-
-        /// <summary>
-        /// Reads a bool from the stream
-        /// </summary>
-        /// <returns>A bool</returns>
         public bool ReadBool()
         {
-            return m_buffer[m_offset++] != 0;
+            return ReadByte() == 1;
         }
-
-        /// <summary>
-        /// Reads a short from the stream
-        /// </summary>
-        /// <returns>A short</returns>
+        public byte[] ReadBytes(int count)
+        {
+            CheckLength(count);
+            var temp = new byte[count];
+            Buffer.BlockCopy(m_buffer, m_index, temp, 0, count);
+            m_index += count;
+            return temp;
+        }
         public unsafe short ReadShort()
         {
+            CheckLength(2);
+
             short value;
 
             fixed (byte* ptr = m_buffer)
             {
-                value = *(short*)(ptr + m_offset);
+                value = *(short*)(ptr + m_index);
             }
 
-            m_offset += 2;
+            m_index += 2;
 
             return value;
         }
-
-        /// <summary>
-        /// Reads a unsigned short from the stream
-        /// </summary>
-        /// <returns>A unsigned short</returns>
-        public ushort ReadUShort()
-        {
-            return (ushort)ReadShort();
-        }
-
-        /// <summary>
-        /// Reads a int from the stream
-        /// </summary>
-        /// <returns>A int</returns>
         public unsafe int ReadInt()
         {
+            CheckLength(4);
+
             int value;
 
             fixed (byte* ptr = m_buffer)
             {
-                value = *(int*)(ptr + m_offset);
+                value = *(int*)(ptr + m_index);
             }
 
-            m_offset += 4;
+            m_index += 4;
 
             return value;
         }
-
-        /// <summary>
-        /// Reads a unsigned int from the stream
-        /// </summary>
-        /// <returns>A unsigned int</returns>
-        public uint ReadUInt()
-        {
-            return (uint)ReadInt();
-        }
-
-        /// <summary>
-        /// Reads a long from the stream
-        /// </summary>
-        /// <returns>A long</returns>
         public unsafe long ReadLong()
         {
+            CheckLength(8);
+
             long value;
 
             fixed (byte* ptr = m_buffer)
             {
-                value = *(long*)(ptr + m_offset);
+                value = *(long*)(ptr + m_index);
             }
 
-            m_offset += 8;
+            m_index += 8;
 
             return value;
         }
 
-        /// <summary>
-        /// Reads a unsigned long from the stream
-        /// </summary>
-        /// <returns>A unsigned long</returns>
-        public ulong ReadULong()
-        {
-            return (ulong)ReadLong();
-        }
-
-        /// <summary>
-        /// Increases streams position
-        /// </summary>
-        /// <param name="count">Bytes to skip</param>
-        public void Skip(int count)
-        {
-            m_offset += count;
-        }
-
-        /// <summary>
-        /// Reads a string from the stream
-        /// </summary>
-        /// <param name="count">Characters in string</param>
-        /// <returns>A string</returns>
         public string ReadString(int count)
         {
+            CheckLength(count);
+
             char[] final = new char[count];
 
             for (int i = 0; i < count; i++)
@@ -181,25 +110,22 @@
 
             return new string(final);
         }
-
-        /// <summary>
-        /// Reads a maple string from the stream
-        /// </summary>
-        /// <returns>A string</returns>
         public string ReadMapleString()
         {
             short count = ReadShort();
             return ReadString(count);
         }
 
-        /// <summary>
-        /// Retrieves a copy of the inital buffer 
-        /// </summary>
-        /// <returns>Initial buffer</returns>
+        public void Skip(int count)
+        {
+            CheckLength(count);
+            m_index += count;
+        }
+
         public byte[] ToArray()
         {
             var final = new byte[m_buffer.Length];
-            System.Buffer.BlockCopy(m_buffer, 0, final, 0, m_buffer.Length);
+            Buffer.BlockCopy(m_buffer, 0, final, 0, m_buffer.Length);
             return final;
         }
     }

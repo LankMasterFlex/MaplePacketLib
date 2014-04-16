@@ -3,37 +3,35 @@ using System.Security.Cryptography;
 
 namespace MaplePacketLib.Cryptography
 {
-    internal static class AESEncryption
+    public sealed class AesCipher
     {
-        private static ICryptoTransform sTransformer;
+        private ICryptoTransform m_crypto;
 
-        public static bool KeySet
+        public AesCipher(byte[] aesKey)
         {
-            get
-            {
-                return sTransformer != default(ICryptoTransform);
-            }
-        }
+            if (aesKey == null)
+                throw new ArgumentNullException("key");
 
-        internal static void SetKey(byte[] key)
-        {
+            if (aesKey.Length != 32)
+                throw new ArgumentOutOfRangeException("Key length needs to be 32", "key");
+
             RijndaelManaged aes = new RijndaelManaged()
             {
-                Key = key,
+                Key = aesKey,
                 Mode = CipherMode.ECB,
                 Padding = PaddingMode.PKCS7
             };
 
             using (aes)
             {
-                sTransformer = aes.CreateEncryptor();
+                m_crypto = aes.CreateEncryptor();
             }
         }
 
-        public static void Transform(byte[] data, int size, byte[] IV)
+        internal void Transform(byte[] data, byte[] IV)
         {
             byte[] morphKey = new byte[16];
-            int remaining = size;
+            int remaining = data.Length;
             int start = 0;
             int length = 0x5B0;
 
@@ -48,7 +46,7 @@ namespace MaplePacketLib.Cryptography
                 for (int index = start; index < (start + length); index++)
                 {
                     if ((index - start) % 16 == 0)
-                        sTransformer.TransformBlock(morphKey, 0, 16, morphKey, 0);
+                        m_crypto.TransformBlock(morphKey, 0, 16, morphKey, 0);
 
                     data[index] ^= morphKey[(index - start) % 16];
                 }
